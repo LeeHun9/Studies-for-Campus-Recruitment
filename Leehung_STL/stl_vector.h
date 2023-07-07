@@ -35,6 +35,8 @@ protected:
     }
 };
 
+
+// vector默认的分配器是alloc
 template <class _Tp, class _Alloc = alloc>
 class vector : protected _Vector_base<_Tp, _Alloc> {
 private:
