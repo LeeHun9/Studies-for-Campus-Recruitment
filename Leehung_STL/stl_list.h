@@ -347,6 +347,29 @@ protected:
             __first._M_node->_M_prev = __tmp;
         }
     }
+
+public:
+    void splice(iterator __position, list& __x) {
+        if (!__x.empty()) this->transfer(__position, __x.begin(), __x.end());
+    }
+
+    void splice(iterator __position, list&, iterator __i) {
+        iterator __j = __i;
+        ++__j;
+        if (__position == __i || __position == __j) return;
+        this->transfer(__position, __i, __j);
+    }
+
+    void splice(iterator __position, list&, iterator __first, iterator __last) {
+        if (__first != __last)
+            this->transfer(__position, __first, __last);
+    }
+
+    void remove(const _Tp& __value);
+    void unique();
+    void merge(list& __x);
+    void reverse();
+    void sort();
 };
 
 
