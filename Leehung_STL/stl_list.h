@@ -116,7 +116,7 @@ public:
         _M_put_node(_M_node);
     }
 
-    void clear;
+    void clear();
 
 protected:
     typedef simple_alloc<_List_node<_Tp>, _Alloc> _Alloc_type;
@@ -127,8 +127,227 @@ protected:
     _List_node<_Tp*> _M_node;
 };
 
-templ
+template<class _Tp, class _Alloc>
+void _List_base<_Tp, _Alloc>::clear() {
+    _List_node<_Tp*> __cur = (_List_node<_Tp>*)_M_node->_M_next;
+    while (__cur != _M_node) {
+        _List_node<_Tp>* __tmp = __cur;
+        __cur = (_List_node<_Tp>*) __cur->_M_next;
+        _Destroy(&tmp->_M_data);
+        _M_put_node(__tmp);
+    }
+    _M_node->_M_next = _M_node;
+    _M_node->_M_prev = _M_node;
+}
 
+template<class _Tp, class _Alloc = alloc>
+class list : protected _List_base<_Tp, _Alloc> {
+    typedef _List_base<_Tp, _Alloc> _Base;
+
+protected:
+    typedef void* _Void_pointer;
+
+public:
+    typedef _Tp value_type;
+    typedef value_type* pointer;
+    typedef const value_type* const_pointer;
+    typedef value_type& reference;
+    typedef const value_type& const_reference;
+    typedef _List_node<_Tp> _Node;
+    typedef size_t size_type;
+    typedef ptrdiff_t difference_type;
+
+    typedef typename _Base::allocator_type allocator_type;
+    allocator_type get_allocator() cosnt { return _Base::get_allocator(); }
+
+public:
+    typedef _List_iterator<_Tp, _Tp&, _Tp*> iterator;
+    typedef _List_iterator<_Tp, cosnt _Tp&, const _Tp*> const_iterator;
+    typedef reverse_bidirectional_iterator<const_iterator, value_type, const_reference, 
+        difference_type> cosnt_reverse_iterator;
+    typedef reverse_bidirectional_iterator<iterator, value_type, reference,
+        difference_type> reverse_iterator;
+    
+protected:
+    using _Base::_M_node;
+    using _Base::_M_put_node;
+    using _Base::_M_get_node;
+
+protected:
+    _Node* _M_create_node(const _Tp& __x) {
+        _Node* __p = _M_get_node();
+        __STL_TRY {
+            _Construct(&__p->_M_data, __x);
+        }
+        __STL_UNWIND(_M_put_node(__p));
+        return __p;
+    }
+
+    _Node* _M_create_node()
+    {
+        _Node* __p = _M_get_node();
+        __STL_TRY{
+          _Construct(&__p->_M_data);
+        }
+        __STL_UNWIND(_M_put_node(__p));
+        return __p;
+    }
+
+public:
+    explicit list(const allocator_type& __a = allocator_type()) : _Base(__a) {}
+
+    iterator begin() { return (_Node*)(_M_node->_M_next); }
+    const_iterator begin() const { return (_Node*)(_M_node->_M_next); }
+
+    iterator end() { return _M_node; }
+    const_iterator end() const { return _M_node; }
+
+    reverse_iterator rbegin()
+    {
+        return reverse_iterator(end());
+    }
+
+    const_reverse_iterator rbegin() const
+    {
+        return const_reverse_iterator(end());
+    }
+
+     reverse_iterator rend()
+    {
+        return reverse_iterator(begin());
+    }
+
+    const_reverse_iterator rend() const
+    {
+        return const_reverse_iterator(begin());
+    }
+
+    bool empty() const { return _M_node->_M_next == _M_node; }
+
+    size_type size() const {
+        size_type __result = 0;
+        distance(begin(), end(), __result);
+        return __result;
+    }
+
+    size_type max_size() const { return size_type(-1); }
+
+    reference front() { return *begin(); }
+    const_reference front() const { return *begin(); }
+    reference back() { return *(--end()); }
+    const_reference back() const { return *(--end()); }
+
+    void swap(list<_Tp, _Alloc>& __x) { __STL_NAME::swap(_M_node, __x._M_node); }
+
+    iterator insert(iterator __position, const _Tp& __x) {
+        _Node* __tmp = _M_create_node(__x);
+        __tmp->_M_next = __position._M_node;
+        __tmp->_M_prev = __position._M_node->_M_prev;
+        __position._M_node->_M_prev->_M_next = __tmp;
+        __position._M_node->_M_prev = __tmp;
+        return __tmp;
+    }
+
+    iterator insert(iterator __position) { return insert(__position, _Tp()); }
+
+    void insert(iterator __position, const _Tp* __first, const _Tp* __last);
+
+    void insert(iterator __position,
+        const_iterator __first, const_iterator __last);
+
+    void insert(iterator __pos, size_type __n, const _Tp& __x)
+    {
+        _M_fill_insert(__pos, __n, __x);
+    }
+
+    void _M_fill_insert(iterator __pos, size_type __n, const _Tp& __x);
+
+    void push_front(const _Tp& __x) { insert(begin(), __x); }
+    void push_front() { insert(begin()); }
+    void push_back(const _Tp& __x) { insert(end(), __x); }
+    void push_back() { insert(end()); }
+
+    iterator erase(iterator __position) {
+        _List_node_base* __next_node = __position._M_node->_M_next;
+        _List_node_base* __prev_node = __position._M_node->_M_prev;
+        _Node* __n = (_Node*)__position._M_node;
+        __prev_node->_M_next = __next_node;
+        __next_node->_M_prev = __prev_node;
+        _Destroy(&__n->_M_data);
+        _M_put_node(__n);
+        return iterator((_Node*)__next_node);
+    }
+
+    iterator erase(iterator __first, iterator __last);
+    void clear() { _Base::clear(); }
+
+    void resize(size_type __new_size, const _Tp& __x);
+    void resize(size_type __new_size) { this->resize(__new_size, _Tp()); }
+
+    void pop_front() { erase(begin()); }
+
+    void pop_back() {
+        iterator __tmp = end();
+        erase(--__tmp);
+    }
+
+    // 构造函数
+    list(size_type __n, const _Tp& __value,
+        const allocator_type& __a = allocator_type())
+        : _Base(__a)
+    {
+        insert(begin(), __n, __value);
+    }
+
+    explicit list(size_type __n)
+        : _Base(allocator_type())
+    {
+        insert(begin(), __n, _Tp());
+    }
+
+    list(const _Tp* __first, const _Tp* __last,
+        const allocator_type& __a = allocator_type())
+        : _Base(__a)
+    {
+        this->insert(begin(), __first, __last);
+    }
+    list(const_iterator __first, const_iterator __last,
+        const allocator_type& __a = allocator_type())
+        : _Base(__a)
+    {
+        this->insert(begin(), __first, __last);
+    }
+
+    list(const list<_Tp, _Alloc>& __x) : _Base(__x.get_allocator())
+    {
+        insert(begin(), __x.begin(), __x.end());
+    }
+
+    ~list() { }
+
+    list<_Tp, _Alloc>& operator=(const list<_Tp, _Alloc>& __x);
+public:
+
+    void assign(size_type __n, const _Tp& __val) { _M_fill_assign(__n, __val); }
+
+    void _M_fill_assign(size_type __n, const _Tp& __val);
+
+protected:
+    void transfer(iterator __position, iterator __first, iterator __last) {
+        if (__position != __last) {
+            // Remove [first, last) from its old position.
+            __last._M_node->_M_prev->_M_next = __position._M_node;
+            __first._M_node->_M_prev->_M_next = __last._M_node;
+            __position._M_node->_M_prev->_M_next = __first._M_node;
+
+            // Splice [first, last) into its new position.
+            _List_node_base* __tmp = __position._M_node->_M_prev;
+            __position._M_node->_M_prev = __last._M_node->_M_prev;
+            __last._M_node->_M_prev = __first._M_node->_M_prev;
+            __first._M_node->_M_prev = __tmp;
+        }
+    }
+};
 
 
 
