@@ -91,7 +91,7 @@ int main() {
   auto q(p);
 
 
-  cout << q << endl;
+  cout << *p5 << endl;
 
   return 0;
 }
