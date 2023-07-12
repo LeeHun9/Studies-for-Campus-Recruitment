@@ -15,12 +15,15 @@ public:
     std::string const isbn() const { return bookNo; }
 
     // 基类希望派生类进行覆盖的函数通常定义为虚函数。关键字virtual使得函数执行动态绑定
-
     // 派生类负责改写并使用不同折扣算法
     virtual double net_price(size_t n) const { return n * price; }
 
     // virtual对析构函数进行动态绑定
     virtual ~Quote() = default;
+
+    // 申请当前对象的拷贝
+    virtual Quote* clone() const & { return new Quote(*this); } 
+    virtual Quote* clone() const && { return new Quote(std::move(*this)); }
 
     static void statmem();
 
@@ -50,6 +53,9 @@ public:
     // 定义新版本
     double net_price(size_t) const override;
 
+    Bulk_quote* clone() const & { return new Bulk_quote(*this); }
+    Bulk_quote* clone() const && { return new Bulk_quote(move(*this)); }
+
 private:
     // 新增数据成员
     size_t min_qty = 0;
@@ -63,8 +69,12 @@ double Bulk_quote::net_price(size_t cnt) const {
 
 class Basket {
 public:
-    void add_item(const std::shared_ptr<Quote> &sale) {
+    void add_item(const std::shared_ptr<Quote> &sale) { // 拷贝给定的对象
         items.insert(sale);
+    }
+
+    void add_item(Quote&& sale) {    // 移动给定的对象
+        items.insert(std::shared_ptr<Quote>(std::move(sale).clone()));
     }
 
     double total_receipt(std::ostream&) const;
@@ -85,6 +95,7 @@ double Basket::total_receipt(std::ostream &os) const {
               iter = items.upper_bound(*iter)) {
         sum += print_total(os, **iter, items.count(*iter));
     }
+    return sum;
 }
 
 int main () {
@@ -92,7 +103,7 @@ int main () {
     Basket bsk;
     bsk.add_item(make_shared<Quote>("123", 35));
     bsk.add_item(make_shared<Bulk_quote>("123", 35, 3, 0.3));
-    
+
 
 
     return 0;
